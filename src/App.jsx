@@ -99,6 +99,7 @@ export default function App() {
   const [dbShadowing, setDbShadowing] = useState(initialShadowing);
 
   useEffect(() => {
+    console.log("ENV:", import.meta.env.VITE_OPENAI_API_KEY);
     const style = document.createElement('style');
     style.innerHTML = `
       @media print {
