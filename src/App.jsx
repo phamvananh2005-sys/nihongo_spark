@@ -713,7 +713,7 @@ function AudioInput({ onAudioReady }) {
     const res = await fetch("https://api.openai.com/v1/audio/transcriptions", {
       method: "POST",
       headers: {
-        Authorization: `Bearer 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`
+        Authorization: `Bearer ${import.meta.env.VITE_OPENAI_API_KEY}`
       },
       body: formData
     });
