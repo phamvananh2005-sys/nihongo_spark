@@ -644,33 +644,89 @@ function AudioInput({ onAudioReady }) {
   const [recordingTime, setRecordingTime] = useState(0);
   const timerRef = useRef(null);
   const recognitionRef = useRef(null);
-  const transcriptRef = useRef(''); // Sử dụng ref để khắc phục triệt để lỗi mất dữ liệu text khi ấn Dừng
+  const transcriptRef = useRef('');
+
+  // ✅ Detect SpeechRecognition
+  const isSpeechSupported =
+    typeof window !== "undefined" &&
+    (window.SpeechRecognition || window.webkitSpeechRecognition);
+
+  // ✅ Detect MIME type phù hợp (fix iPhone)
+  const getMimeType = () => {
+    if (typeof MediaRecorder === "undefined") return '';
+
+    if (MediaRecorder.isTypeSupported('audio/webm')) {
+      return 'audio/webm';
+    }
+
+    if (MediaRecorder.isTypeSupported('audio/mp4')) {
+      return 'audio/mp4';
+    }
+
+    if (MediaRecorder.isTypeSupported('audio/mpeg')) {
+      return 'audio/mpeg';
+    }
+
+    return '';
+  };
 
   useEffect(() => {
-    // Khởi tạo SpeechRecognition (Chrome/Edge)
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (SpeechRecognition) {
-      const recognition = new SpeechRecognition();
-      recognition.lang = 'ja-JP';
-      recognition.continuous = true;
-      recognition.interimResults = true;
-
-      recognition.onresult = (event) => {
-        let fullTranscript = '';
-        // Quét toàn bộ kết quả liên tục để vét sạch mọi từ học viên phát âm
-        for (let i = 0; i < event.results.length; ++i) {
-          fullTranscript += event.results[i][0].transcript;
-        }
-        transcriptRef.current = fullTranscript;
-      };
-      recognitionRef.current = recognition;
+    if (!isSpeechSupported) {
+      console.log("❌ No SpeechRecognition → will use OpenAI");
+      recognitionRef.current = null;
+      return;
     }
+
+    console.log("✅ Using browser SpeechRecognition");
+
+    const SpeechRecognition =
+      window.SpeechRecognition || window.webkitSpeechRecognition;
+
+    const recognition = new SpeechRecognition();
+    recognition.lang = 'ja-JP';
+    recognition.continuous = true;
+    recognition.interimResults = true;
+
+    recognition.onresult = (event) => {
+      let fullTranscript = '';
+      for (let i = 0; i < event.results.length; ++i) {
+        fullTranscript += event.results[i][0].transcript;
+      }
+      transcriptRef.current = fullTranscript;
+    };
+
+    recognition.onerror = (err) => {
+      console.log("⚠️ SpeechRecognition error:", err);
+    };
+
+    recognitionRef.current = recognition;
   }, []);
+
+  // ✅ OpenAI fallback
+  const transcribeWithOpenAI = async (file) => {
+    console.log("🚀 Calling OpenAI...");
+
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("model", "gpt-4o-mini-transcribe");
+
+    const res = await fetch("https://api.openai.com/v1/audio/transcriptions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer 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`
+      },
+      body: formData
+    });
+
+    const data = await res.json();
+    console.log("✅ OpenAI transcript:", data.text);
+
+    return data.text;
+  };
 
   const handleFileChange = (e) => {
     if (e.target.files && e.target.files.length > 0) {
       const file = e.target.files[0];
-      // File tải lên không có transcript
       onAudioReady(file, URL.createObjectURL(file), null, true);
     }
   };
@@ -678,21 +734,62 @@ function AudioInput({ onAudioReady }) {
   const startRecording = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const recorder = new MediaRecorder(stream);
-      const chunks = [];
 
-      transcriptRef.current = ''; // Reset bộ nhớ chữ
+      const mimeType = getMimeType();
+      console.log("🎤 Using MIME type:", mimeType);
+
+      const recorder = new MediaRecorder(
+        stream,
+        mimeType ? { mimeType } : {}
+      );
+
+      const chunks = [];
+      transcriptRef.current = '';
+
       if (recognitionRef.current) {
-        try { recognitionRef.current.start(); } catch (e) { } // Tránh lỗi click đúp quá nhanh
+        try { recognitionRef.current.start(); } catch (e) {}
       }
 
       recorder.ondataavailable = e => chunks.push(e.data);
-      recorder.onstop = () => {
-        const blob = new Blob(chunks, { type: 'audio/webm' });
-        const file = new File([blob], `recorded.webm`, { type: 'audio/webm' });
 
-        // Truyền transcript THỰC TẾ lấy từ ref lên trên để chấm điểm chuẩn xác
-        onAudioReady(file, URL.createObjectURL(blob), transcriptRef.current, false);
+      recorder.onstop = async () => {
+        const blob = new Blob(chunks, {
+          type: mimeType || 'audio/webm'
+        });
+
+        const extension = mimeType.includes('mp4')
+          ? 'mp4'
+          : mimeType.includes('mpeg')
+          ? 'mp3'
+          : 'webm';
+
+        const file = new File(
+          [blob],
+          `recorded.${extension}`,
+          { type: blob.type }
+        );
+
+        let transcript = transcriptRef.current;
+
+        // 🔥 fallback OpenAI nếu không có SpeechRecognition
+        if (!isSpeechSupported) {
+          try {
+            transcript = await transcribeWithOpenAI(file);
+          } catch (e) {
+            console.log("❌ OpenAI error:", e);
+            transcript = null;
+          }
+        } else {
+          console.log("🧠 Browser transcript:", transcript);
+        }
+
+        onAudioReady(
+          file,
+          URL.createObjectURL(blob),
+          transcript,
+          false
+        );
+
         clearInterval(timerRef.current);
         setRecordingTime(0);
       };
@@ -704,6 +801,7 @@ function AudioInput({ onAudioReady }) {
       timerRef.current = setInterval(() => {
         setRecordingTime(prev => prev + 1);
       }, 1000);
+
     } catch (err) {
       alert("Không thể truy cập Microphone.");
     }
@@ -712,9 +810,11 @@ function AudioInput({ onAudioReady }) {
   const stopRecording = () => {
     if (mediaRecorder && isRecording) {
       mediaRecorder.stop();
+
       if (recognitionRef.current) {
-        try { recognitionRef.current.stop(); } catch (e) { }
+        try { recognitionRef.current.stop(); } catch (e) {}
       }
+
       setIsRecording(false);
       mediaRecorder.stream.getTracks().forEach(track => track.stop());
     }
