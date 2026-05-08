@@ -968,7 +968,7 @@ function AudioInput({ onAudioReady }) {
     return data.text;
   };
 
-
+//hi
   const handleFileChange = (e) => {
     if (e.target.files && e.target.files.length > 0) {
       const file = e.target.files[0];
