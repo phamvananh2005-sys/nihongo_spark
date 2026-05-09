@@ -1,10 +1,21 @@
 import React, { useState, useEffect, useRef, createContext, useContext } from 'react';
-import { 
-  Upload, User, Volume2, Volume1, Download, Star, Award, MessageSquare, 
-  RefreshCcw, CheckCircle2, Mic, Square, ChevronRight, 
+import {
+  Upload, User, Volume2, Volume1, Download, Star, Award, MessageSquare,
+  RefreshCcw, CheckCircle2, Mic, Square, ChevronRight,
   BookOpen, MessageCircle, Eye, EyeOff, ShieldCheck, Sparkles, BookA,
   Lock, LogOut, Plus, Save, X, Info, Trash2, Activity, Globe
 } from 'lucide-react';
+import { supabase } from './supabase';
+
+const normalizeDbItem = (item) => ({
+  ...item,
+  isPublished: item.isPublished ?? item.ispublished
+});
+
+const toDbItem = ({ isPublished, ispublished, ...item }) => ({
+  ...item,
+  ispublished: isPublished ?? ispublished
+});
 
 // --- HỆ THỐNG ĐA NGÔN NGỮ (i18n) ---
 const dict = {
@@ -196,64 +207,20 @@ function FuriganaText({ text }) {
 }
 
 // --- MOCK DATABASE ---
-const initialTopics = [
-  { 
-    id: 't1', title: 'Giới thiệu bản thân', level: 'N5',
-    req: 'Hãy giới thiệu tên, tuổi, quê quán, sở thích và lý do bạn học tiếng Nhật trong khoảng 1 phút.',
-    isPublished: true,
-    hint: {
-      jp: "[初|はじ]めまして。[私|わたし]は[山田|やまだ]と[申|もう]します。ベトナムから[来|き]ました。[趣味|しゅみ]は[映画|えいが]を[見|み]ることです。[日本|にほん]の[文化|ぶんか]が[好|す]きなので、[日本語|にほんご]を[勉強|べんきょう]しています。よろしくお[願|ねが]いします。",
-      romaji: "Hajimemashite. Watashi wa Yamada to moushimasu. Betonamu kara kimashita. Shumi wa eiga o miru koto desu. Nihon no bunka ga suki na node, nihongo o benkyou shite imasu. Yoroshiku onegaishimasu.",
-      vi: "Rất hân hạnh. Tôi tên là Yamada. Tôi đến từ Việt Nam. Sở thích của tôi là xem phim. Vì tôi thích văn hóa Nhật Bản nên tôi đang học tiếng Nhật. Rất mong được giúp đỡ.",
-      en: "Nice to meet you. My name is Yamada. I came from Vietnam. My hobby is watching movies. Because I like Japanese culture, I am studying Japanese. I look forward to working with you."
-    }
-  },
-  { 
-    id: 't2', title: 'Môi trường làm việc lý tưởng', level: 'N2',
-    req: 'Trình bày quan điểm của bạn về một môi trường làm việc tốt. Cần có những yếu tố nào? Lương bổng hay văn hóa công ty quan trọng hơn?',
-    isPublished: true,
-    hint: {
-      jp: "[私|わたし]にとって[理想的|りそうてき]な[職場|しょくば]は、[給料|きゅうりょう]だけでなく[人間関係|にんげんかんけい]が[良好|りょうこう]な[環境|かんきょう]です。[意見|いけん]を[自由|じゆう]に[言|い]える[雰囲気|ふんいき]が[一番|いちばん][重要|じゅうよう]だと[思|おも]います。",
-      romaji: "Watashi ni totte risouteki na shokuba wa, kyuuryou dake de naku ningen kankei ga ryoukou na kankyou desu. Iken o jiyuu ni ieru fun'iki ga ichiban juuyou da to omoimasu.",
-      vi: "Đối với tôi, nơi làm việc lý tưởng không chỉ là tiền lương mà còn là môi trường có mối quan hệ con người tốt đẹp. Tôi nghĩ bầu không khí có thể tự do bày tỏ ý kiến là quan trọng nhất.",
-      en: "For me, an ideal workplace is an environment where not only the salary is good, but also human relations are excellent. I think an atmosphere where one can freely express opinions is the most important."
-    }
-  }
-];
-
-const initialShadowing = [
-  { 
-    id: 's1', level: 'N5', type: 'vocab', title: 'Chủ đề: Trường học & Học tập', isPublished: true,
-    items: [
-      { jp: '[学校|がっこう]', romaji: 'Gakkou', vi: 'Trường học', en: 'School' },
-      { jp: '[学生|がくせい]', romaji: 'Gakusei', vi: 'Học sinh', en: 'Student' },
-      { jp: '[先生|せんせい]', romaji: 'Sensei', vi: 'Giáo viên', en: 'Teacher' },
-      { jp: '[教室|きょうしつ]', romaji: 'Kyoushitsu', vi: 'Phòng học', en: 'Classroom' },
-      { jp: '[本|ほん]', romaji: 'Hon', vi: 'Sách', en: 'Book' }
-    ]
-  },
-  { 
-    id: 's2', level: 'N5', type: 'sentence', title: 'Bài 1: Giao tiếp hàng ngày', isPublished: true,
-    items: [
-      { jp: 'おはようございます。', romaji: 'Ohayou gozaimasu.', vi: 'Chào buổi sáng.', en: 'Good morning.' },
-      { jp: 'お[元気|げんき]ですか。', romaji: 'O-genki desu ka.', vi: 'Bạn có khỏe không?', en: 'How are you?' },
-      { jp: '[週末|しゅうまつ]は[友達|ともだち]と[映画|えいが]を[見|み]に[行|い]きます。', romaji: 'Shuumatsu wa tomodachi to eiga o mi ni ikimasu.', vi: 'Cuối tuần tôi sẽ đi xem phim với bạn.', en: 'I will go see a movie with a friend this weekend.' }
-    ]
-  }
-];
+// Removed initialTopics and initialShadowing, now using Supabase
 
 export default function App() {
   const [lang, setLang] = useState('vi'); // 'vi' or 'en'
   const t = (key) => dict[lang][key] || dict['vi'][key] || key;
 
-  const [role, setRole] = useState('user'); 
-  const [activeMode, setActiveMode] = useState(null); 
+  const [role, setRole] = useState('user');
+  const [activeMode, setActiveMode] = useState(null);
   const [studentName, setStudentName] = useState('');
   const [logoError, setLogoError] = useState(false);
   const [isForgotPwd, setIsForgotPwd] = useState(false);
 
-  const [dbTopics, setDbTopics] = useState(initialTopics);
-  const [dbShadowing, setDbShadowing] = useState(initialShadowing);
+  const [dbTopics, setDbTopics] = useState([]);
+  const [dbShadowing, setDbShadowing] = useState([]);
 
   // Lưu trữ và lấy mật khẩu Admin từ localStorage
   const [adminPassword, setAdminPassword] = useState(() => {
@@ -277,8 +244,40 @@ export default function App() {
     return () => document.head.removeChild(style);
   }, []);
 
+  // Fetch data from Supabase
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const { data: topicsData, error: topicsError } = await supabase
+          .from('topics')
+          .select('*');
+
+        if (topicsError) throw topicsError;
+        setDbTopics((topicsData || []).map(item => ({
+          ...item,
+          isPublished: item.isPublished ?? item.ispublished
+        })));
+
+        const { data: shadowingData, error: shadowingError } = await supabase
+          .from('shadowing')
+          .select('*');
+
+        if (shadowingError) throw shadowingError;
+        setDbShadowing((shadowingData || []).map(item => ({
+          ...item,
+          isPublished: item.isPublished ?? item.ispublished
+        })));
+      } catch (error) {
+        console.error('Error fetching data from Supabase:', error);
+        alert('Lỗi khi tải dữ liệu từ cơ sở dữ liệu. Vui lòng thử lại.');
+      }
+    };
+
+    fetchData();
+  }, []);
+
   const handleAdminLogin = (password) => {
-    if (password === adminPassword) { setRole('admin'); setActiveMode(null); } 
+    if (password === adminPassword) { setRole('admin'); setActiveMode(null); }
     else { alert(lang === 'en' ? 'Wrong admin password!' : 'Sai mật khẩu quản trị!'); }
   };
 
@@ -296,7 +295,7 @@ export default function App() {
       <div className="text-center mb-8">
         <h2 className="text-3xl font-black text-slate-800 mb-4">{t('welcome')}</h2>
         <p className="text-slate-600 font-medium flex items-center justify-center gap-2">
-          {t('subtitle')} <Sparkles size={16} className="text-[#F26522]"/>
+          {t('subtitle')} <Sparkles size={16} className="text-[#F26522]" />
         </p>
       </div>
 
@@ -304,9 +303,9 @@ export default function App() {
         <label className="block text-center font-bold text-slate-700 mb-3">{t('step1')}</label>
         <div className="bg-white/95 backdrop-blur-sm p-2 pl-5 rounded-2xl shadow-md border border-[#f0e0d8] flex items-center gap-3 focus-within:ring-2 focus-within:ring-[#F26522]/50 transition-all">
           <User className={studentName.trim() ? "text-green-500 transition-colors" : "text-[#F26522] transition-colors"} />
-          <input 
+          <input
             id="student-name-input"
-            type="text" 
+            type="text"
             placeholder={t('namePlaceholder')}
             value={studentName}
             onChange={(e) => setStudentName(e.target.value)}
@@ -315,7 +314,7 @@ export default function App() {
           />
           {studentName.trim() && (
             <span className="bg-green-100 text-green-700 px-3 py-1.5 rounded-xl text-xs font-bold animate-in zoom-in flex items-center gap-1">
-              <CheckCircle2 size={14}/> {t('received')}
+              <CheckCircle2 size={14} /> {t('received')}
             </span>
           )}
         </div>
@@ -359,38 +358,38 @@ export default function App() {
   return (
     <LanguageContext.Provider value={{ lang, setLang, t }}>
       <div className="fuji-bg text-slate-800 font-sans selection:bg-[#F26522] selection:text-white">
-        
+
         {/* KHÔNG GIAN BẦU TRỜI: BẦY SẾU ĐẦU ĐỎ (CRANES) */}
         <div className="fixed top-0 left-0 w-full h-[60vh] pointer-events-none z-0 overflow-hidden">
           <div className="absolute top-20 right-[-5%] md:top-24 md:right-8 lg:right-20 w-56 h-56 md:w-72 md:h-72 opacity-50 transform -rotate-12">
             <svg viewBox="0 0 400 400" className="w-full h-full drop-shadow-md">
               <g transform="translate(200, 100) scale(1)">
-                <path d="M 0 0 C -40 -30 -60 20 -80 30 C -40 20 -20 10 0 0 Z" fill="#475569"/> 
-                <path d="M 0 0 C 40 -30 60 20 80 30 C 40 20 20 10 0 0 Z" fill="#94a3b8"/> 
-                <path d="M 0 0 C -30 -20 -50 30 -70 40 C -30 30 -10 10 0 0 Z" fill="#ffffff"/> 
-                <path d="M 0 0 C 30 -20 50 30 70 40 C 30 30 10 10 0 0 Z" fill="#f8fafc"/> 
-                <path d="M -20 -10 C 0 -10 20 -10 0 50 C -10 20 -15 0 -20 -10 Z" fill="#ffffff"/> 
-                <path d="M -20 -10 C -30 -20 -35 -35 -30 -45 C -25 -30 -15 -20 -20 -10 Z" fill="#ffffff"/> 
-                <circle cx="-32" cy="-48" r="4" fill="#dc2626"/> 
-                <path d="M -35 -45 L -45 -50 L -33 -40 Z" fill="#1e293b"/> 
-                <path d="M -20 -10 C -25 -20 -28 -30 -30 -40 C -28 -25 -20 -15 -20 -10 Z" fill="#1e293b"/> 
+                <path d="M 0 0 C -40 -30 -60 20 -80 30 C -40 20 -20 10 0 0 Z" fill="#475569" />
+                <path d="M 0 0 C 40 -30 60 20 80 30 C 40 20 20 10 0 0 Z" fill="#94a3b8" />
+                <path d="M 0 0 C -30 -20 -50 30 -70 40 C -30 30 -10 10 0 0 Z" fill="#ffffff" />
+                <path d="M 0 0 C 30 -20 50 30 70 40 C 30 30 10 10 0 0 Z" fill="#f8fafc" />
+                <path d="M -20 -10 C 0 -10 20 -10 0 50 C -10 20 -15 0 -20 -10 Z" fill="#ffffff" />
+                <path d="M -20 -10 C -30 -20 -35 -35 -30 -45 C -25 -30 -15 -20 -20 -10 Z" fill="#ffffff" />
+                <circle cx="-32" cy="-48" r="4" fill="#dc2626" />
+                <path d="M -35 -45 L -45 -50 L -33 -40 Z" fill="#1e293b" />
+                <path d="M -20 -10 C -25 -20 -28 -30 -30 -40 C -28 -25 -20 -15 -20 -10 Z" fill="#1e293b" />
               </g>
               <g transform="translate(100, 200) scale(0.6)">
-                <path d="M 0 0 C -30 -20 -50 30 -70 40 C -30 30 -10 10 0 0 Z" fill="#ffffff"/> 
-                <path d="M 0 0 C 30 -20 50 30 70 40 C 30 30 10 10 0 0 Z" fill="#f8fafc"/>
-                <path d="M -20 -10 C 0 -10 20 -10 0 50 C -10 20 -15 0 -20 -10 Z" fill="#ffffff"/> 
-                <path d="M -20 -10 C -30 -20 -35 -35 -30 -45 C -25 -30 -15 -20 -20 -10 Z" fill="#ffffff"/>
-                <circle cx="-32" cy="-48" r="4" fill="#dc2626"/> 
-                <path d="M -35 -45 L -45 -50 L -33 -40 Z" fill="#1e293b"/> 
-                <path d="M -20 -10 C -25 -20 -28 -30 -30 -40 C -28 -25 -20 -15 -20 -10 Z" fill="#1e293b"/> 
+                <path d="M 0 0 C -30 -20 -50 30 -70 40 C -30 30 -10 10 0 0 Z" fill="#ffffff" />
+                <path d="M 0 0 C 30 -20 50 30 70 40 C 30 30 10 10 0 0 Z" fill="#f8fafc" />
+                <path d="M -20 -10 C 0 -10 20 -10 0 50 C -10 20 -15 0 -20 -10 Z" fill="#ffffff" />
+                <path d="M -20 -10 C -30 -20 -35 -35 -30 -45 C -25 -30 -15 -20 -20 -10 Z" fill="#ffffff" />
+                <circle cx="-32" cy="-48" r="4" fill="#dc2626" />
+                <path d="M -35 -45 L -45 -50 L -33 -40 Z" fill="#1e293b" />
+                <path d="M -20 -10 C -25 -20 -28 -30 -30 -40 C -28 -25 -20 -15 -20 -10 Z" fill="#1e293b" />
               </g>
               <g transform="translate(300, 250) scale(0.4)">
-                <path d="M 0 0 C -30 -20 -50 30 -70 40 C -30 30 -10 10 0 0 Z" fill="#ffffff"/> 
-                <path d="M 0 0 C 30 -20 50 30 70 40 C 30 30 10 10 0 0 Z" fill="#f8fafc"/>
-                <path d="M -20 -10 C 0 -10 20 -10 0 50 C -10 20 -15 0 -20 -10 Z" fill="#ffffff"/> 
-                <path d="M -20 -10 C -30 -20 -35 -35 -30 -45 C -25 -30 -15 -20 -20 -10 Z" fill="#ffffff"/>
-                <circle cx="-32" cy="-48" r="4" fill="#dc2626"/> 
-                <path d="M -35 -45 L -45 -50 L -33 -40 Z" fill="#1e293b"/> 
+                <path d="M 0 0 C -30 -20 -50 30 -70 40 C -30 30 -10 10 0 0 Z" fill="#ffffff" />
+                <path d="M 0 0 C 30 -20 50 30 70 40 C 30 30 10 10 0 0 Z" fill="#f8fafc" />
+                <path d="M -20 -10 C 0 -10 20 -10 0 50 C -10 20 -15 0 -20 -10 Z" fill="#ffffff" />
+                <path d="M -20 -10 C -30 -20 -35 -35 -30 -45 C -25 -30 -15 -20 -20 -10 Z" fill="#ffffff" />
+                <circle cx="-32" cy="-48" r="4" fill="#dc2626" />
+                <path d="M -35 -45 L -45 -50 L -33 -40 Z" fill="#1e293b" />
               </g>
             </svg>
           </div>
@@ -435,7 +434,7 @@ export default function App() {
                     <ShieldCheck size={14} /> {t('adminMode')}
                   </span>
                   <button onClick={() => { setRole('user'); setActiveMode(null); }} className="text-sm font-bold text-slate-500 hover:text-red-500 flex items-center gap-1 transition-colors">
-                    <LogOut size={16} className="sm:hidden"/><span className="hidden sm:block">{t('logout')}</span>
+                    <LogOut size={16} className="sm:hidden" /><span className="hidden sm:block">{t('logout')}</span>
                   </button>
                 </div>
               ) : (
@@ -454,28 +453,28 @@ export default function App() {
             <div className="max-w-sm mx-auto mt-20 bg-white p-8 rounded-3xl shadow-xl border border-slate-200 animate-in fade-in zoom-in">
               <Lock className="text-[#F26522] mx-auto mb-4" size={40} />
               <h2 className="text-xl font-bold text-center text-slate-800 mb-6">{isForgotPwd ? t('forgotPwd') : t('adminLoginTitle')}</h2>
-              
+
               {isForgotPwd ? (
                 <div className="text-center animate-in fade-in">
-                   <p className="text-sm text-slate-600 mb-4">{t('forgotPwdDesc')}</p>
-                   <p className="font-bold text-[#F26522] mb-6">vananh.pham@minhvietacademy.org</p>
-                   <a href="mailto:vananh.pham@minhvietacademy.org?subject=Yêu cầu khôi phục mật khẩu Admin - Nihongo Spark" className="block w-full bg-[#F26522] text-white font-bold py-3 rounded-xl shadow hover:bg-[#d95618] mb-3 transition-colors">
-                     {t('sendEmail')}
-                   </a>
-                   <button onClick={() => setIsForgotPwd(false)} className="w-full mt-2 text-sm text-slate-500 hover:text-slate-800">{t('backBtn')}</button>
+                  <p className="text-sm text-slate-600 mb-4">{t('forgotPwdDesc')}</p>
+                  <p className="font-bold text-[#F26522] mb-6">vananh.pham@minhvietacademy.org</p>
+                  <a href="mailto:vananh.pham@minhvietacademy.org?subject=Yêu cầu khôi phục mật khẩu Admin - Nihongo Spark" className="block w-full bg-[#F26522] text-white font-bold py-3 rounded-xl shadow hover:bg-[#d95618] mb-3 transition-colors">
+                    {t('sendEmail')}
+                  </a>
+                  <button onClick={() => setIsForgotPwd(false)} className="w-full mt-2 text-sm text-slate-500 hover:text-slate-800">{t('backBtn')}</button>
                 </div>
               ) : (
                 <div className="animate-in fade-in">
-                  <input 
-                    type="password" id="adminPwd" placeholder={t('passPlaceholder')} 
+                  <input
+                    type="password" id="adminPwd" placeholder={t('passPlaceholder')}
                     className="w-full p-3 border border-slate-300 rounded-xl mb-4 focus:outline-none focus:border-[#F26522]"
-                    onKeyDown={(e) => { if(e.key === 'Enter') handleAdminLogin(document.getElementById('adminPwd').value) }}
+                    onKeyDown={(e) => { if (e.key === 'Enter') handleAdminLogin(document.getElementById('adminPwd').value) }}
                   />
                   <button onClick={() => handleAdminLogin(document.getElementById('adminPwd').value)} className="w-full bg-[#F26522] text-white font-bold py-3 rounded-xl shadow hover:bg-[#d95618] mb-3 transition-colors">
                     {t('loginBtn')}
                   </button>
                   <div className="flex justify-between items-center mt-3 px-1">
-                    <button onClick={() => {setActiveMode(null); setIsForgotPwd(false);}} className="text-sm text-slate-500 hover:text-slate-800">{t('backBtn')}</button>
+                    <button onClick={() => { setActiveMode(null); setIsForgotPwd(false); }} className="text-sm text-slate-500 hover:text-slate-800">{t('backBtn')}</button>
                     <button onClick={() => setIsForgotPwd(true)} className="text-sm text-[#F26522] hover:underline font-medium">{t('forgotPwd')}</button>
                   </div>
                 </div>
@@ -484,11 +483,11 @@ export default function App() {
           )}
 
           {role === 'admin' && !activeMode ? (
-             <AdminPanel 
-               dbTopics={dbTopics} setDbTopics={setDbTopics} 
-               dbShadowing={dbShadowing} setDbShadowing={setDbShadowing} 
-               adminPassword={adminPassword} setAdminPassword={setAdminPassword} 
-             />
+            <AdminPanel
+              dbTopics={dbTopics} setDbTopics={setDbTopics}
+              dbShadowing={dbShadowing} setDbShadowing={setDbShadowing}
+              adminPassword={adminPassword} setAdminPassword={setAdminPassword}
+            />
           ) : role === 'user' ? (
             <>
               {!activeMode && renderHome()}
@@ -511,7 +510,7 @@ function AdminPanel({ dbTopics, setDbTopics, dbShadowing, setDbShadowing, adminP
   const [editingTopic, setEditingTopic] = useState(null);
   const [editingShadow, setEditingShadow] = useState(null);
   const [shadowItemsText, setShadowItemsText] = useState('');
-  
+
   const [newPwd, setNewPwd] = useState('');
   const [confirmPwd, setConfirmPwd] = useState('');
 
@@ -525,34 +524,167 @@ function AdminPanel({ dbTopics, setDbTopics, dbShadowing, setDbShadowing, adminP
     setConfirmPwd('');
   };
 
-  const saveTopic = (isPublished) => {
-    if(!editingTopic.title) { alert("Nhập tên chủ đề!"); return; }
+  const saveTopic = async (isPublished) => {
+    if (!editingTopic.title) { alert("Nhập tên chủ đề!"); return; }
     const newTopic = { ...editingTopic, isPublished };
     if (!newTopic.id) newTopic.id = 't_' + Date.now();
-    setDbTopics(dbTopics.some(t => t.id === newTopic.id) ? dbTopics.map(t => t.id === newTopic.id ? newTopic : t) : [newTopic, ...dbTopics]);
-    setEditingTopic(null);
+
+    try {
+      const { error } = await supabase
+        .from('topics')
+        .upsert(toDbItem(newTopic));
+
+      if (error) throw error;
+
+      // Refresh data
+      const { data: topicsData, error: fetchError } = await supabase
+        .from('topics')
+        .select('*');
+
+      if (fetchError) throw fetchError;
+      setDbTopics((topicsData || []).map(normalizeDbItem));
+
+      setEditingTopic(null);
+      alert("Lưu thành công!");
+    } catch (error) {
+      console.error('Error saving topic:', error);
+      alert("Lỗi khi lưu dữ liệu. Vui lòng thử lại.");
+    }
   };
-  
-  const saveShadow = (isPublished) => {
-    if(!editingShadow.title) { alert("Nhập tên bài học!"); return; }
+
+  const saveShadow = async (isPublished) => {
+    if (!editingShadow.title) { alert("Nhập tên bài học!"); return; }
     const parsedItems = shadowItemsText.split('\n').filter(line => line.trim() !== '').map(line => {
       const parts = line.split('/').map(p => p.trim());
       return { jp: parts[0] || '', romaji: parts[1] || '', vi: parts[2] || '', en: parts[3] || '' };
     });
     const newShadow = { ...editingShadow, items: parsedItems, isPublished };
     if (!newShadow.id) newShadow.id = 's_' + Date.now();
-    setDbShadowing(dbShadowing.some(s => s.id === newShadow.id) ? dbShadowing.map(s => s.id === newShadow.id ? newShadow : s) : [newShadow, ...dbShadowing]);
-    setEditingShadow(null);
+
+    try {
+      const { error } = await supabase
+        .from('shadowing')
+        .upsert(toDbItem(newShadow));
+
+      if (error) throw error;
+
+      // Refresh data
+      const { data: shadowingData, error: fetchError } = await supabase
+        .from('shadowing')
+        .select('*');
+
+      if (fetchError) throw fetchError;
+      setDbShadowing((shadowingData || []).map(normalizeDbItem));
+
+      setEditingShadow(null);
+      alert("Lưu thành công!");
+    } catch (error) {
+      console.error('Error saving shadowing:', error);
+      alert("Lỗi khi lưu dữ liệu. Vui lòng thử lại.");
+    }
   };
 
-  const toggleTopicPublish = (id) => setDbTopics(dbTopics.map(t => t.id === id ? { ...t, isPublished: !t.isPublished } : t));
-  const toggleShadowPublish = (id) => setDbShadowing(dbShadowing.map(s => s.id === id ? { ...s, isPublished: !s.isPublished } : s));
-  const handleDeleteTopic = (id) => { if (window.confirm("Xóa vĩnh viễn?")) setDbTopics(dbTopics.filter(t => t.id !== id)); };
-  const handleDeleteShadow = (id) => { if (window.confirm("Xóa vĩnh viễn?")) setDbShadowing(dbShadowing.filter(s => s.id !== id)); };
+  const toggleTopicPublish = async (id) => {
+    const topic = dbTopics.find(t => t.id === id);
+    if (!topic) return;
 
-  const startEditTopic = (t) => { setEditingTopic({...t}); };
-  const startEditShadow = (s) => { 
-    setEditingShadow({...s}); 
+    try {
+      const { error } = await supabase
+        .from('topics')
+        .update({ ispublished: !topic.isPublished })
+        .eq('id', id);
+
+      if (error) throw error;
+
+      // Refresh data
+      const { data: topicsData, error: fetchError } = await supabase
+        .from('topics')
+        .select('*');
+
+      if (fetchError) throw fetchError;
+      setDbTopics((topicsData || []).map(normalizeDbItem));
+    } catch (error) {
+      console.error('Error toggling topic publish:', error);
+      alert("Lỗi khi cập nhật trạng thái. Vui lòng thử lại.");
+    }
+  };
+
+  const toggleShadowPublish = async (id) => {
+    const shadow = dbShadowing.find(s => s.id === id);
+    if (!shadow) return;
+
+    try {
+      const { error } = await supabase
+        .from('shadowing')
+        .update({ ispublished: !shadow.isPublished })
+        .eq('id', id);
+
+      if (error) throw error;
+
+      // Refresh data
+      const { data: shadowingData, error: fetchError } = await supabase
+        .from('shadowing')
+        .select('*');
+
+      if (fetchError) throw fetchError;
+      setDbShadowing((shadowingData || []).map(normalizeDbItem));
+    } catch (error) {
+      console.error('Error toggling shadowing publish:', error);
+      alert("Lỗi khi cập nhật trạng thái. Vui lòng thử lại.");
+    }
+  };
+
+  const handleDeleteTopic = async (id) => {
+    if (!window.confirm("Xóa vĩnh viễn?")) return;
+
+    try {
+      const { error } = await supabase
+        .from('topics')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+
+      // Refresh data
+      const { data: topicsData, error: fetchError } = await supabase
+        .from('topics')
+        .select('*');
+
+      if (fetchError) throw fetchError;
+      setDbTopics((topicsData || []).map(normalizeDbItem));
+    } catch (error) {
+      console.error('Error deleting topic:', error);
+      alert("Lỗi khi xóa dữ liệu. Vui lòng thử lại.");
+    }
+  };
+
+  const handleDeleteShadow = async (id) => {
+    if (!window.confirm("Xóa vĩnh viễn?")) return;
+
+    try {
+      const { error } = await supabase
+        .from('shadowing')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+
+      // Refresh data
+      const { data: shadowingData, error: fetchError } = await supabase
+        .from('shadowing')
+        .select('*');
+
+      if (fetchError) throw fetchError;
+      setDbShadowing((shadowingData || []).map(normalizeDbItem));
+    } catch (error) {
+      console.error('Error deleting shadowing:', error);
+      alert("Lỗi khi xóa dữ liệu. Vui lòng thử lại.");
+    }
+  };
+
+  const startEditTopic = (t) => { setEditingTopic({ ...t }); };
+  const startEditShadow = (s) => {
+    setEditingShadow({ ...s });
     setShadowItemsText(s.items.map(i => `${i.jp} / ${i.romaji} / ${i.vi} ${i.en ? `/ ${i.en}` : ''}`).join('\n'));
   };
 
@@ -560,15 +692,15 @@ function AdminPanel({ dbTopics, setDbTopics, dbShadowing, setDbShadowing, adminP
     <div className="max-w-5xl mx-auto mt-8 animate-in fade-in duration-500 px-4 pb-20">
       <div className="bg-white/95 backdrop-blur-md rounded-3xl shadow-xl overflow-hidden border border-slate-200">
         <div className="flex flex-wrap border-b border-slate-200 bg-slate-50">
-          <button onClick={() => {setTab('topics'); setEditingTopic(null);}} className={`flex-1 py-4 font-bold text-center border-b-2 ${tab === 'topics' ? 'border-[#F26522] text-[#F26522] bg-white' : 'border-transparent text-slate-500 hover:text-slate-800'}`}>Quản lý Chủ đề</button>
-          <button onClick={() => {setTab('shadowing'); setEditingShadow(null);}} className={`flex-1 py-4 font-bold text-center border-b-2 ${tab === 'shadowing' ? 'border-[#F26522] text-[#F26522] bg-white' : 'border-transparent text-slate-500 hover:text-slate-800'}`}>Quản lý Shadowing</button>
+          <button onClick={() => { setTab('topics'); setEditingTopic(null); }} className={`flex-1 py-4 font-bold text-center border-b-2 ${tab === 'topics' ? 'border-[#F26522] text-[#F26522] bg-white' : 'border-transparent text-slate-500 hover:text-slate-800'}`}>Quản lý Chủ đề</button>
+          <button onClick={() => { setTab('shadowing'); setEditingShadow(null); }} className={`flex-1 py-4 font-bold text-center border-b-2 ${tab === 'shadowing' ? 'border-[#F26522] text-[#F26522] bg-white' : 'border-transparent text-slate-500 hover:text-slate-800'}`}>Quản lý Shadowing</button>
           <button onClick={() => setTab('settings')} className={`flex-1 py-4 font-bold text-center border-b-2 ${tab === 'settings' ? 'border-[#F26522] text-[#F26522] bg-white' : 'border-transparent text-slate-500 hover:text-slate-800'}`}>Cài đặt</button>
         </div>
         <div className="p-8">
-          
+
           {tab === 'settings' && (
             <div className="max-w-md mx-auto py-8 animate-in fade-in">
-              <h3 className="font-bold text-xl text-slate-800 mb-6 flex items-center gap-2"><Lock className="text-[#F26522]"/> Đổi mật khẩu Admin</h3>
+              <h3 className="font-bold text-xl text-slate-800 mb-6 flex items-center gap-2"><Lock className="text-[#F26522]" /> Đổi mật khẩu Admin</h3>
               <div className="space-y-4">
                 <div className="bg-orange-50 text-orange-800 p-3 rounded-lg text-sm font-medium mb-4 border border-orange-200">
                   Mật khẩu sẽ được lưu trên trình duyệt hiện tại.
@@ -594,54 +726,54 @@ function AdminPanel({ dbTopics, setDbTopics, dbShadowing, setDbShadowing, adminP
                 <>
                   <div className="flex justify-between items-center mb-6">
                     <h3 className="font-bold text-xl text-slate-800">Kho Chủ đề</h3>
-                    <button onClick={() => setEditingTopic({ id: 't_' + Date.now(), title: '', level: 'N5', req: '', isPublished: false, hint: { jp:'', romaji:'', vi:'', en:'' }})} className="bg-[#F26522] text-white hover:bg-[#d95618] px-4 py-2 rounded-lg font-bold text-sm flex items-center gap-2 shadow-md"><Plus size={18} /> Thêm mới</button>
+                    <button onClick={() => setEditingTopic({ id: 't_' + Date.now(), title: '', level: 'N5', req: '', isPublished: false, hint: { jp: '', romaji: '', vi: '', en: '' } })} className="bg-[#F26522] text-white hover:bg-[#d95618] px-4 py-2 rounded-lg font-bold text-sm flex items-center gap-2 shadow-md"><Plus size={18} /> Thêm mới</button>
                   </div>
                   <div className="space-y-4">
                     {dbTopics.map(topic => (
                       <div key={topic.id} className={`p-5 rounded-2xl border ${topic.isPublished ? 'border-slate-200 bg-white' : 'border-orange-200 bg-orange-50'}`}>
-                         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-3">
-                           <div>
-                             <span className="text-xs font-bold bg-slate-200 text-slate-600 px-2 py-1 rounded mr-2">{topic.level}</span>
-                             <h4 className="font-bold text-lg text-[#F26522] inline-block">{topic.title}</h4>
-                           </div>
-                           <div className="flex gap-2 flex-wrap">
-                             <button onClick={() => toggleTopicPublish(topic.id)} className={`px-3 py-1.5 rounded-full text-xs font-bold flex items-center gap-1 ${topic.isPublished ? 'bg-green-100 text-green-700' : 'bg-slate-200 text-slate-600'}`}>{topic.isPublished ? <><Eye size={14}/> Công khai</> : <><EyeOff size={14}/> Nháp</>}</button>
-                             <button onClick={() => startEditTopic(topic)} className="px-3 py-1.5 bg-blue-100 text-blue-600 rounded-full text-xs font-bold">Sửa</button>
-                             <button onClick={() => handleDeleteTopic(topic.id)} className="px-3 py-1.5 bg-red-100 text-red-600 rounded-full text-xs font-bold flex items-center gap-1"><Trash2 size={14}/> Xóa</button>
-                           </div>
-                         </div>
-                         <p className="text-sm text-slate-600 mb-2 truncate">{topic.req}</p>
+                        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-3">
+                          <div>
+                            <span className="text-xs font-bold bg-slate-200 text-slate-600 px-2 py-1 rounded mr-2">{topic.level}</span>
+                            <h4 className="font-bold text-lg text-[#F26522] inline-block">{topic.title}</h4>
+                          </div>
+                          <div className="flex gap-2 flex-wrap">
+                            <button onClick={() => toggleTopicPublish(topic.id)} className={`px-3 py-1.5 rounded-full text-xs font-bold flex items-center gap-1 ${topic.isPublished ? 'bg-green-100 text-green-700' : 'bg-slate-200 text-slate-600'}`}>{topic.isPublished ? <><Eye size={14} /> Công khai</> : <><EyeOff size={14} /> Nháp</>}</button>
+                            <button onClick={() => startEditTopic(topic)} className="px-3 py-1.5 bg-blue-100 text-blue-600 rounded-full text-xs font-bold">Sửa</button>
+                            <button onClick={() => handleDeleteTopic(topic.id)} className="px-3 py-1.5 bg-red-100 text-red-600 rounded-full text-xs font-bold flex items-center gap-1"><Trash2 size={14} /> Xóa</button>
+                          </div>
+                        </div>
+                        <p className="text-sm text-slate-600 mb-2 truncate">{topic.req}</p>
                       </div>
                     ))}
                   </div>
                 </>
               ) : (
                 <div className="animate-in fade-in slide-in-from-right-4">
-                   <div className="flex justify-between items-center mb-6 border-b pb-4">
-                     <h3 className="font-bold text-xl text-slate-800">Soạn thảo Chủ đề</h3>
-                     <button onClick={() => setEditingTopic(null)} className="text-slate-400 hover:text-red-500"><X size={24}/></button>
-                   </div>
-                   <div className="grid grid-cols-2 gap-4 mb-4">
-                     <div><label className="block text-sm font-bold text-slate-700 mb-1">Tên chủ đề</label><input type="text" value={editingTopic.title} onChange={e => setEditingTopic({...editingTopic, title: e.target.value})} className="w-full p-3 border rounded-xl" /></div>
-                     <div>
-                       <label className="block text-sm font-bold text-slate-700 mb-1">Cấp độ</label>
-                       <select value={editingTopic.level} onChange={e => setEditingTopic({...editingTopic, level: e.target.value})} className="w-full p-3 border rounded-xl">
-                         <option value="N5">N5</option><option value="N4">N4</option><option value="N3">N3</option><option value="N2">N2</option><option value="N1">N1</option>
-                       </select>
-                     </div>
-                   </div>
-                   <div className="mb-4"><label className="block text-sm font-bold text-slate-700 mb-1">Yêu cầu</label><textarea value={editingTopic.req} onChange={e => setEditingTopic({...editingTopic, req: e.target.value})} className="w-full p-3 border rounded-xl h-20" /></div>
-                   <div className="p-4 border rounded-xl bg-slate-50 space-y-3">
-                     <label className="block text-sm font-bold text-slate-800 border-b pb-2">Bài nói mẫu</label>
-                     <div className="bg-orange-50 text-orange-800 p-3 rounded-lg text-xs font-medium border border-orange-200">
-                       Cú pháp Furigana: <code>[漢字|hiragana]</code> (Ví dụ: <code>[私|わたし]</code>)
-                     </div>
-                     <div><label className="block text-xs font-bold mb-1">Tiếng Nhật (Hỗ trợ Furigana)</label><textarea value={editingTopic.hint.jp} onChange={e => setEditingTopic({...editingTopic, hint: {...editingTopic.hint, jp: e.target.value}})} className="w-full p-2 border rounded-lg h-24" placeholder="VD: [初|はじ]めまして。[私|わたし]は..." /></div>
-                     <div><label className="block text-xs font-bold mb-1">Romaji</label><input type="text" value={editingTopic.hint.romaji} onChange={e => setEditingTopic({...editingTopic, hint: {...editingTopic.hint, romaji: e.target.value}})} className="w-full p-2 border rounded-lg" /></div>
-                     <div><label className="block text-xs font-bold mb-1">Tiếng Việt</label><input type="text" value={editingTopic.hint.vi} onChange={e => setEditingTopic({...editingTopic, hint: {...editingTopic.hint, vi: e.target.value}})} className="w-full p-2 border rounded-lg" /></div>
-                     <div><label className="block text-xs font-bold mb-1">Tiếng Anh (Cho giao diện EN)</label><input type="text" value={editingTopic.hint.en || ''} onChange={e => setEditingTopic({...editingTopic, hint: {...editingTopic.hint, en: e.target.value}})} className="w-full p-2 border rounded-lg" /></div>
-                   </div>
-                   <div className="flex gap-4 mt-8 pt-4 border-t"><button onClick={() => saveTopic(false)} className="flex-1 bg-slate-200 py-3 rounded-xl font-bold">Lưu Nháp</button><button onClick={() => saveTopic(true)} className="flex-1 bg-[#F26522] text-white py-3 rounded-xl font-bold">Lưu & Public</button></div>
+                  <div className="flex justify-between items-center mb-6 border-b pb-4">
+                    <h3 className="font-bold text-xl text-slate-800">Soạn thảo Chủ đề</h3>
+                    <button onClick={() => setEditingTopic(null)} className="text-slate-400 hover:text-red-500"><X size={24} /></button>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4 mb-4">
+                    <div><label className="block text-sm font-bold text-slate-700 mb-1">Tên chủ đề</label><input type="text" value={editingTopic.title} onChange={e => setEditingTopic({ ...editingTopic, title: e.target.value })} className="w-full p-3 border rounded-xl" /></div>
+                    <div>
+                      <label className="block text-sm font-bold text-slate-700 mb-1">Cấp độ</label>
+                      <select value={editingTopic.level} onChange={e => setEditingTopic({ ...editingTopic, level: e.target.value })} className="w-full p-3 border rounded-xl">
+                        <option value="N5">N5</option><option value="N4">N4</option><option value="N3">N3</option><option value="N2">N2</option><option value="N1">N1</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div className="mb-4"><label className="block text-sm font-bold text-slate-700 mb-1">Yêu cầu</label><textarea value={editingTopic.req} onChange={e => setEditingTopic({ ...editingTopic, req: e.target.value })} className="w-full p-3 border rounded-xl h-20" /></div>
+                  <div className="p-4 border rounded-xl bg-slate-50 space-y-3">
+                    <label className="block text-sm font-bold text-slate-800 border-b pb-2">Bài nói mẫu</label>
+                    <div className="bg-orange-50 text-orange-800 p-3 rounded-lg text-xs font-medium border border-orange-200">
+                      Cú pháp Furigana: <code>[漢字|hiragana]</code> (Ví dụ: <code>[私|わたし]</code>)
+                    </div>
+                    <div><label className="block text-xs font-bold mb-1">Tiếng Nhật (Hỗ trợ Furigana)</label><textarea value={editingTopic.hint.jp} onChange={e => setEditingTopic({ ...editingTopic, hint: { ...editingTopic.hint, jp: e.target.value } })} className="w-full p-2 border rounded-lg h-24" placeholder="VD: [初|はじ]めまして。[私|わたし]は..." /></div>
+                    <div><label className="block text-xs font-bold mb-1">Romaji</label><input type="text" value={editingTopic.hint.romaji} onChange={e => setEditingTopic({ ...editingTopic, hint: { ...editingTopic.hint, romaji: e.target.value } })} className="w-full p-2 border rounded-lg" /></div>
+                    <div><label className="block text-xs font-bold mb-1">Tiếng Việt</label><input type="text" value={editingTopic.hint.vi} onChange={e => setEditingTopic({ ...editingTopic, hint: { ...editingTopic.hint, vi: e.target.value } })} className="w-full p-2 border rounded-lg" /></div>
+                    <div><label className="block text-xs font-bold mb-1">Tiếng Anh (Cho giao diện EN)</label><input type="text" value={editingTopic.hint.en || ''} onChange={e => setEditingTopic({ ...editingTopic, hint: { ...editingTopic.hint, en: e.target.value } })} className="w-full p-2 border rounded-lg" /></div>
+                  </div>
+                  <div className="flex gap-4 mt-8 pt-4 border-t"><button onClick={() => saveTopic(false)} className="flex-1 bg-slate-200 py-3 rounded-xl font-bold">Lưu Nháp</button><button onClick={() => saveTopic(true)} className="flex-1 bg-[#F26522] text-white py-3 rounded-xl font-bold">Lưu & Public</button></div>
                 </div>
               )}
             </div>
@@ -653,50 +785,50 @@ function AdminPanel({ dbTopics, setDbTopics, dbShadowing, setDbShadowing, adminP
                 <>
                   <div className="flex justify-between items-center mb-6">
                     <h3 className="font-bold text-xl text-slate-800">Kho Shadowing</h3>
-                    <button onClick={() => {setEditingShadow({ id: 's_' + Date.now(), title: '', level: 'N5', type: 'sentence', isPublished: false, items: [] }); setShadowItemsText('');}} className="bg-[#F26522] text-white px-4 py-2 rounded-lg font-bold text-sm"><Plus size={18} className="inline"/> Thêm mới</button>
+                    <button onClick={() => { setEditingShadow({ id: 's_' + Date.now(), title: '', level: 'N5', type: 'sentence', isPublished: false, items: [] }); setShadowItemsText(''); }} className="bg-[#F26522] text-white px-4 py-2 rounded-lg font-bold text-sm"><Plus size={18} className="inline" /> Thêm mới</button>
                   </div>
                   <div className="space-y-4">
                     {dbShadowing.map(shadow => (
                       <div key={shadow.id} className={`p-5 rounded-2xl border flex flex-col md:flex-row justify-between items-start md:items-center gap-4 ${shadow.isPublished ? 'border-slate-200 bg-white' : 'border-orange-200 bg-orange-50'}`}>
-                         <div>
-                           <span className="text-xs font-bold bg-slate-200 px-2 py-1 rounded mr-2">{shadow.level}</span>
-                           <span className="text-xs font-bold bg-blue-100 text-blue-600 px-2 py-1 rounded mr-2">{shadow.type === 'vocab' ? 'Từ vựng' : 'Câu'}</span>
-                           <h4 className="font-bold text-lg inline">{shadow.title}</h4>
-                           <p className="text-xs text-slate-500 mt-1">{shadow.items.length} hạng mục</p>
-                         </div>
-                         <div className="flex gap-2 flex-wrap">
-                           <button onClick={() => toggleShadowPublish(shadow.id)} className={`px-3 py-1.5 rounded-full text-xs font-bold ${shadow.isPublished ? 'bg-green-100 text-green-700' : 'bg-slate-200 text-slate-600'}`}>{shadow.isPublished ? 'Public' : 'Nháp'}</button>
-                           <button onClick={() => startEditShadow(shadow)} className="px-3 py-1.5 bg-blue-100 text-blue-600 rounded-full text-xs font-bold">Sửa</button>
-                           <button onClick={() => handleDeleteShadow(shadow.id)} className="px-3 py-1.5 bg-red-100 text-red-600 rounded-full text-xs font-bold"><Trash2 size={14}/></button>
-                         </div>
+                        <div>
+                          <span className="text-xs font-bold bg-slate-200 px-2 py-1 rounded mr-2">{shadow.level}</span>
+                          <span className="text-xs font-bold bg-blue-100 text-blue-600 px-2 py-1 rounded mr-2">{shadow.type === 'vocab' ? 'Từ vựng' : 'Câu'}</span>
+                          <h4 className="font-bold text-lg inline">{shadow.title}</h4>
+                          <p className="text-xs text-slate-500 mt-1">{shadow.items.length} hạng mục</p>
+                        </div>
+                        <div className="flex gap-2 flex-wrap">
+                          <button onClick={() => toggleShadowPublish(shadow.id)} className={`px-3 py-1.5 rounded-full text-xs font-bold ${shadow.isPublished ? 'bg-green-100 text-green-700' : 'bg-slate-200 text-slate-600'}`}>{shadow.isPublished ? 'Public' : 'Nháp'}</button>
+                          <button onClick={() => startEditShadow(shadow)} className="px-3 py-1.5 bg-blue-100 text-blue-600 rounded-full text-xs font-bold">Sửa</button>
+                          <button onClick={() => handleDeleteShadow(shadow.id)} className="px-3 py-1.5 bg-red-100 text-red-600 rounded-full text-xs font-bold"><Trash2 size={14} /></button>
+                        </div>
                       </div>
                     ))}
                   </div>
                 </>
               ) : (
                 <div className="animate-in fade-in slide-in-from-right-4">
-                   <div className="flex justify-between items-center mb-6 border-b pb-4">
-                     <h3 className="font-bold text-xl text-slate-800">Soạn thảo Bài học Shadowing</h3>
-                     <button onClick={() => setEditingShadow(null)} className="text-slate-400 hover:text-red-500"><X size={24}/></button>
-                   </div>
-                   <div className="grid grid-cols-3 gap-4 mb-4">
-                     <div><label className="block text-sm font-bold mb-1">Cấp độ</label><select value={editingShadow.level} onChange={e => setEditingShadow({...editingShadow, level: e.target.value})} className="w-full p-3 border rounded-xl"><option value="N5">N5</option><option value="N4">N4</option><option value="N3">N3</option><option value="N2">N2</option><option value="N1">N1</option></select></div>
-                     <div><label className="block text-sm font-bold mb-1">Loại</label><select value={editingShadow.type} onChange={e => setEditingShadow({...editingShadow, type: e.target.value})} className="w-full p-3 border rounded-xl"><option value="sentence">Câu văn</option><option value="vocab">Từ vựng</option></select></div>
-                     <div><label className="block text-sm font-bold mb-1">Tên bài học</label><input type="text" value={editingShadow.title} onChange={e => setEditingShadow({...editingShadow, title: e.target.value})} className="w-full p-3 border rounded-xl" /></div>
-                   </div>
-                   <div className="mb-4">
-                     <label className="block text-sm font-bold mb-2">Danh sách Từ vựng / Câu</label>
-                     <div className="bg-orange-50 text-orange-800 p-4 rounded-xl text-sm font-medium mb-3 border border-orange-200 shadow-inner">
-                       <p className="mb-2"><strong>Cú pháp bắt buộc:</strong> <code>Tiếng Nhật / Romaji / Tiếng Việt / Tiếng Anh</code> (Ngăn cách bằng dấu <code>/</code>)</p>
-                       <p className="mb-2"><strong>Chú thích Furigana:</strong> <code>[ChữHán|hiragana]</code></p>
-                       <ul className="list-disc pl-5 space-y-1 mt-2 text-xs opacity-90">
-                         <li>VD Từ vựng: <code>[学校|がっこう] / Gakkou / Trường học / School</code></li>
-                         <li>VD Câu văn: <code>おはようございます。 / Ohayou gozaimasu. / Chào buổi sáng. / Good morning.</code></li>
-                       </ul>
-                     </div>
-                     <textarea value={shadowItemsText} onChange={e => setShadowItemsText(e.target.value)} className="w-full p-4 border rounded-xl h-64 font-mono text-sm leading-relaxed" placeholder="[学校|がっこう] / Gakkou / Trường học / School"/>
-                   </div>
-                   <div className="flex gap-4 mt-8 pt-4 border-t"><button onClick={() => saveShadow(false)} className="flex-1 bg-slate-200 py-3 rounded-xl font-bold">Lưu Nháp</button><button onClick={() => saveShadow(true)} className="flex-1 bg-[#F26522] text-white py-3 rounded-xl font-bold">Lưu & Public</button></div>
+                  <div className="flex justify-between items-center mb-6 border-b pb-4">
+                    <h3 className="font-bold text-xl text-slate-800">Soạn thảo Bài học Shadowing</h3>
+                    <button onClick={() => setEditingShadow(null)} className="text-slate-400 hover:text-red-500"><X size={24} /></button>
+                  </div>
+                  <div className="grid grid-cols-3 gap-4 mb-4">
+                    <div><label className="block text-sm font-bold mb-1">Cấp độ</label><select value={editingShadow.level} onChange={e => setEditingShadow({ ...editingShadow, level: e.target.value })} className="w-full p-3 border rounded-xl"><option value="N5">N5</option><option value="N4">N4</option><option value="N3">N3</option><option value="N2">N2</option><option value="N1">N1</option></select></div>
+                    <div><label className="block text-sm font-bold mb-1">Loại</label><select value={editingShadow.type} onChange={e => setEditingShadow({ ...editingShadow, type: e.target.value })} className="w-full p-3 border rounded-xl"><option value="sentence">Câu văn</option><option value="vocab">Từ vựng</option></select></div>
+                    <div><label className="block text-sm font-bold mb-1">Tên bài học</label><input type="text" value={editingShadow.title} onChange={e => setEditingShadow({ ...editingShadow, title: e.target.value })} className="w-full p-3 border rounded-xl" /></div>
+                  </div>
+                  <div className="mb-4">
+                    <label className="block text-sm font-bold mb-2">Danh sách Từ vựng / Câu</label>
+                    <div className="bg-orange-50 text-orange-800 p-4 rounded-xl text-sm font-medium mb-3 border border-orange-200 shadow-inner">
+                      <p className="mb-2"><strong>Cú pháp bắt buộc:</strong> <code>Tiếng Nhật / Romaji / Tiếng Việt / Tiếng Anh</code> (Ngăn cách bằng dấu <code>/</code>)</p>
+                      <p className="mb-2"><strong>Chú thích Furigana:</strong> <code>[ChữHán|hiragana]</code></p>
+                      <ul className="list-disc pl-5 space-y-1 mt-2 text-xs opacity-90">
+                        <li>VD Từ vựng: <code>[学校|がっこう] / Gakkou / Trường học / School</code></li>
+                        <li>VD Câu văn: <code>おはようございます。 / Ohayou gozaimasu. / Chào buổi sáng. / Good morning.</code></li>
+                      </ul>
+                    </div>
+                    <textarea value={shadowItemsText} onChange={e => setShadowItemsText(e.target.value)} className="w-full p-4 border rounded-xl h-64 font-mono text-sm leading-relaxed" placeholder="[学校|がっこう] / Gakkou / Trường học / School" />
+                  </div>
+                  <div className="flex gap-4 mt-8 pt-4 border-t"><button onClick={() => saveShadow(false)} className="flex-1 bg-slate-200 py-3 rounded-xl font-bold">Lưu Nháp</button><button onClick={() => saveShadow(true)} className="flex-1 bg-[#F26522] text-white py-3 rounded-xl font-bold">Lưu & Public</button></div>
                 </div>
               )}
             </div>
@@ -720,16 +852,16 @@ function generateGradingResultFallback(transcript, expectedRawText, level, mode,
   const cleanExpectedHiragana = expectedRawText ? expectedRawText.replace(/\[([^|]+)\|([^\]]+)\]/g, '$2').replace(/[。、！？\s]/g, '') : '';
   const cleanTranscript = transcript ? transcript.replace(/[。、！？\s]/g, '') : '';
 
-  let finalScore = 5.0; 
+  let finalScore = 5.0;
   let criteriaObj = {};
   let estimatedLevel = '';
-  
+
   if (mode === 'vocab' || mode === 'sentence') {
     let matchCount = 0;
     // Gộp Kanji và Hiragana lại để kiểm tra xem STT trả về dạng nào cũng bắt được
     const targetString = cleanExpectedKanji + cleanExpectedHiragana;
     for (let char of cleanTranscript) { if (targetString.includes(char)) matchCount++; }
-    
+
     const matchRate = Math.min(1.0, matchCount / Math.max(1, cleanExpectedKanji.length));
     finalScore = matchRate * 10;
     criteriaObj = {
@@ -774,7 +906,7 @@ function generateGradingResultFallback(transcript, expectedRawText, level, mode,
 }
 
 const evaluateWithGemini = async (transcript, expectedText, level, mode, lang, requirement = '') => {
-  const apiKey = ""; // Thay bằng VITE_GEMINI_API_KEY khi deploy
+  const apiKey = import.meta.env.VITE_GEMINI_API_KEY; // Thay bằng VITE_GEMINI_API_KEY khi deploy
   const systemPrompt = `You are a strict but encouraging native Japanese language AI assistant grading a student's speech.
 Language for feedback: ${lang === 'en' ? 'English' : 'Vietnamese'}.
 Task Mode: ${mode} (vocab = single word, sentence = shadowing, topic = presentation, free = unstructured speech).
@@ -824,31 +956,31 @@ Instructions:
         required: ["score", "level", "feedback", "pronunciation_score", "fluency_score"]
       }
     },
-    model: "gemini-2.5-flash-preview-09-2025"
+    model: "gemini-2.5-flash"
   };
 
   const delays = [1000, 2000, 4000, 8000, 16000];
   for (let attempt = 0; attempt <= 5; attempt++) {
     try {
-      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`, {
+      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
-      
+
       if (!res.ok) throw new Error(`API Error ${res.status}`);
-      
+
       const data = await res.json();
       const textRes = data.candidates?.[0]?.content?.parts?.[0]?.text;
-      
+
       if (textRes) {
         const match = textRes.match(/\{[\s\S]*\}/);
         if (match) {
           try {
             return JSON.parse(match[0]);
           } catch (parseErr) {
-             console.error("JSON Parse Error", parseErr);
-             throw new Error("Invalid JSON format");
+            console.error("JSON Parse Error", parseErr);
+            throw new Error("Invalid JSON format");
           }
         }
         throw new Error("No JSON object found");
@@ -999,7 +1131,7 @@ function AudioInput({ onAudioReady }) {
 
 
       if (recognitionRef.current) {
-        try { recognitionRef.current.start(); } catch (e) {}
+        try { recognitionRef.current.start(); } catch (e) { }
       }
 
 
@@ -1015,8 +1147,8 @@ function AudioInput({ onAudioReady }) {
         const extension = mimeType.includes('mp4')
           ? 'mp4'
           : mimeType.includes('mpeg')
-          ? 'mp3'
-          : 'webm';
+            ? 'mp3'
+            : 'webm';
 
 
         const file = new File(
@@ -1077,7 +1209,7 @@ function AudioInput({ onAudioReady }) {
 
 
       if (recognitionRef.current) {
-        try { recognitionRef.current.stop(); } catch (e) {}
+        try { recognitionRef.current.stop(); } catch (e) { }
       }
 
 
@@ -1133,41 +1265,44 @@ function AudioInput({ onAudioReady }) {
 // ---------------------------------------------------------
 function FreeAndTopicMode({ type, studentName, onRequireName, dbTopics }) {
   const { lang, t } = useContext(LanguageContext);
-  const [step, setStep] = useState(0); 
+  const [step, setStep] = useState(0);
   const [selectedFile, setSelectedFile] = useState(null);
   const [fileUrl, setFileUrl] = useState(null);
   const [transcript, setTranscript] = useState(null);
   const [isFileUpload, setIsFileUpload] = useState(false);
   const [result, setResult] = useState(null);
   const [selectedTopicId, setSelectedTopicId] = useState('');
-  
+
   const [isPlayingModel, setIsPlayingModel] = useState(false);
 
-  const publishedTopics = dbTopics.filter(t => t.isPublished);
+  const publishedTopics = dbTopics.filter(t => {
+    if (t.isPublished === undefined || t.isPublished === null) return true;
+    return t.isPublished === true || t.isPublished === 'true' || t.isPublished === 1 || t.isPublished === '1';
+  });
   const currentTopic = publishedTopics.find(t => t.id === selectedTopicId);
 
   useEffect(() => { if (!studentName) onRequireName(); }, []);
 
   const playModelAudio = (textRaw, speedMode = 'normal') => {
     if (!('speechSynthesis' in window)) { alert("TTS not supported in your browser."); return; }
-    
+
     // Đổi $1 (Kanji) thành $2 (Hiragana) để máy đọc chuẩn xác 100% cách phát âm đã quy định
     const cleanText = textRaw.replace(/\[([^|]+)\|([^\]]+)\]/g, '$2');
     setIsPlayingModel(speedMode);
-    
+
     const utterance = new SpeechSynthesisUtterance(cleanText);
     utterance.lang = 'ja-JP';
-    
+
     if (speedMode === 'slow') {
-      utterance.rate = 0.35; 
+      utterance.rate = 0.35;
     } else {
-      const rateMap = { 'N5': 0.8, 'N4': 0.9, 'N3': 1.0, 'N2': 1.1, 'N1': 1.2 }; 
+      const rateMap = { 'N5': 0.8, 'N4': 0.9, 'N3': 1.0, 'N2': 1.1, 'N1': 1.2 };
       utterance.rate = currentTopic ? (rateMap[currentTopic.level] || 1.0) : 1.0;
     }
-    
+
     utterance.onend = () => setIsPlayingModel(false);
     utterance.onerror = () => setIsPlayingModel(false);
-    
+
     window.speechSynthesis.cancel();
     window.speechSynthesis.speak(utterance);
   };
@@ -1182,7 +1317,7 @@ function FreeAndTopicMode({ type, studentName, onRequireName, dbTopics }) {
   const startGrading = async () => {
     if (type === 'topic' && !selectedTopicId) { alert(lang === 'en' ? "Please select a topic!" : "Vui lòng chọn một chủ đề!"); return; }
     if (!selectedFile) { alert(lang === 'en' ? "Please provide audio!" : "Vui lòng tải lên hoặc thu âm bài nói!"); return; }
-    
+
     setStep(1); // Cập nhật state để hiển thị màn hình loading
 
     try {
@@ -1191,16 +1326,16 @@ function FreeAndTopicMode({ type, studentName, onRequireName, dbTopics }) {
 
       let finalResult;
       if (isFileUpload) {
-        const baseScore = 6.0 + Math.random() * 3.0; 
+        const baseScore = 6.0 + Math.random() * 3.0;
         const clamp = (val) => Math.min(10.0, Math.max(0.0, parseFloat(val) || 0)).toFixed(1);
         finalResult = {
           score: clamp(baseScore),
           level: lang === 'en' ? (baseScore >= 8 ? 'Good' : 'Fair') : (baseScore >= 8 ? 'Giỏi' : 'Khá'),
-          criteria: { 
-            [t('cPronunciation')]: clamp(baseScore-0.2), 
-            [t('cFluency')]: clamp(baseScore) 
+          criteria: {
+            [t('cPronunciation')]: clamp(baseScore - 0.2),
+            [t('cFluency')]: clamp(baseScore)
           },
-          feedback: lang === 'en' 
+          feedback: lang === 'en'
             ? `[AUDIO FILE UPLOAD MODE]\nDue to browser limits, detailed pronunciation errors cannot be extracted from uploaded files. Use "Direct Record" for full AI capabilities.`
             : `[CHÚ Ý: BẠN ĐANG TẢI FILE ÂM THANH]\nDo hạn chế của trình duyệt, hệ thống không thể bóc tách từng lỗi ngữ âm chính xác từ file có sẵn. Hãy dùng nút "Thu âm trực tiếp" để AI đọc chính xác từng từ bạn nói nhé!`
         };
@@ -1208,42 +1343,42 @@ function FreeAndTopicMode({ type, studentName, onRequireName, dbTopics }) {
         const expectedText = type === 'topic' ? currentTopic?.hint?.jp || '' : '';
         const topicRequirement = type === 'topic' ? currentTopic?.req || '' : '';
         const levelTarget = type === 'topic' ? currentTopic?.level || 'N3' : 'N3';
-        
+
         // SỬA LỖI: Cho phép nhận diện cả những từ có 1 ký tự (độ dài === 0 mới báo lỗi)
         if (!transcript || transcript.trim().length === 0) {
-           finalResult = {
-              score: '2.0', level: lang === 'en' ? 'Needs Practice' : 'Cần luyện tập thêm',
-              criteria: { [t('cPronunciation')]: '2.0', [t('cFluency')]: '2.0' },
-              feedback: lang === 'en' ? 'The system could not clearly recognize what you said. Please check your microphone and speak louder.' : 'Hệ thống không nhận diện rõ bạn nói gì. Vui lòng kiểm tra Micro và thử nói lớn hơn nhé.'
-           };
+          finalResult = {
+            score: '2.0', level: lang === 'en' ? 'Needs Practice' : 'Cần luyện tập thêm',
+            criteria: { [t('cPronunciation')]: '2.0', [t('cFluency')]: '2.0' },
+            feedback: lang === 'en' ? 'The system could not clearly recognize what you said. Please check your microphone and speak louder.' : 'Hệ thống không nhận diện rõ bạn nói gì. Vui lòng kiểm tra Micro và thử nói lớn hơn nhé.'
+          };
         } else {
-           const apiRes = await evaluateWithGemini(transcript, expectedText, levelTarget, type, lang, topicRequirement);
-           if (apiRes) {
-              finalResult = {
-                 score: apiRes.score,
-                 level: apiRes.level,
-                 estimated_jlpt: apiRes.estimated_jlpt || '',
-                 criteria: {
-                    [t('cPronunciation')]: apiRes.pronunciation_score || "0.0",
-                    [t('cFluency')]: apiRes.fluency_score || "0.0",
-                 },
-                 feedback: apiRes.feedback
-              };
-              if (type === 'topic') {
-                 finalResult.criteria[t('cGrammar')] = apiRes.grammar_score || "0.0";
-                 finalResult.criteria[t('cVocabRichness')] = apiRes.vocab_score || "0.0";
-                 finalResult.criteria[t('cTopicRelevance')] = apiRes.accuracy_score || "0.0";
-              } else {
-                 finalResult.criteria[t('cGrammar')] = apiRes.grammar_score || "0.0";
-                 finalResult.criteria[t('cIdeaDev')] = apiRes.vocab_score || "0.0";
-              }
-           } else {
-              // Fallback an toàn nếu API quá tải
-              finalResult = generateGradingResultFallback(transcript, expectedText, levelTarget, type, lang, t);
-           }
+          const apiRes = await evaluateWithGemini(transcript, expectedText, levelTarget, type, lang, topicRequirement);
+          if (apiRes) {
+            finalResult = {
+              score: apiRes.score,
+              level: apiRes.level,
+              estimated_jlpt: apiRes.estimated_jlpt || '',
+              criteria: {
+                [t('cPronunciation')]: apiRes.pronunciation_score || "0.0",
+                [t('cFluency')]: apiRes.fluency_score || "0.0",
+              },
+              feedback: apiRes.feedback
+            };
+            if (type === 'topic') {
+              finalResult.criteria[t('cGrammar')] = apiRes.grammar_score || "0.0";
+              finalResult.criteria[t('cVocabRichness')] = apiRes.vocab_score || "0.0";
+              finalResult.criteria[t('cTopicRelevance')] = apiRes.accuracy_score || "0.0";
+            } else {
+              finalResult.criteria[t('cGrammar')] = apiRes.grammar_score || "0.0";
+              finalResult.criteria[t('cIdeaDev')] = apiRes.vocab_score || "0.0";
+            }
+          } else {
+            // Fallback an toàn nếu API quá tải
+            finalResult = generateGradingResultFallback(transcript, expectedText, levelTarget, type, lang, t);
+          }
         }
       }
-      
+
       setResult(finalResult);
       setStep(2);
     } catch (error) {
@@ -1271,31 +1406,37 @@ function FreeAndTopicMode({ type, studentName, onRequireName, dbTopics }) {
                 <option value="">{t('selectTopicHolder')}</option>
                 {publishedTopics.map(tData => <option key={tData.id} value={tData.id}>[{tData.level}] {tData.title}</option>)}
               </select>
-              
+
+              {publishedTopics.length === 0 && (
+                <div className="mt-4 p-4 rounded-xl bg-yellow-50 border border-yellow-200 text-yellow-800 text-sm">
+                  Hiện chưa có chủ đề nào được công khai. Vui lòng kiểm tra dữ liệu topic trong Supabase hoặc bật trường <strong>isPublished</strong>.
+                </div>
+              )}
+
               {currentTopic && (
                 <div className="mt-4 space-y-4 animate-in slide-in-from-top-2">
                   <div className="p-4 bg-orange-50 border border-orange-100 rounded-xl text-sm text-slate-700">
-                    <span className="font-bold text-[#F26522] flex items-center gap-1 mb-1"><Star size={14}/> {t('reqLevel').replace('{0}', currentTopic.level)}</span>
+                    <span className="font-bold text-[#F26522] flex items-center gap-1 mb-1"><Star size={14} /> {t('reqLevel').replace('{0}', currentTopic.level)}</span>
                     <p className="leading-relaxed">{currentTopic.req}</p>
                   </div>
 
                   <div className="p-5 bg-white border border-slate-200 rounded-xl shadow-sm relative">
                     <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-3 mb-4 border-b pb-3">
                       <span className="font-bold text-slate-800 flex items-center gap-2">
-                        <BookA size={16} className="text-blue-500"/> {t('hintModel')}
+                        <BookA size={16} className="text-blue-500" /> {t('hintModel')}
                       </span>
                       <div className="flex gap-2">
                         <button onClick={() => playModelAudio(currentTopic.hint.jp, 'slow')} disabled={isPlayingModel !== false} className={`px-3 py-1.5 text-xs font-bold rounded-full border transition-all flex items-center gap-1 ${isPlayingModel === 'slow' ? 'bg-blue-50 border-blue-400 text-blue-600 animate-pulse' : 'bg-white border-slate-300 hover:border-[#F26522] hover:text-[#F26522] text-slate-600'}`}>
-                          <Volume1 size={14}/> {t('listenSlow')}
+                          <Volume1 size={14} /> {t('listenSlow')}
                         </button>
                         <button onClick={() => playModelAudio(currentTopic.hint.jp, 'normal')} disabled={isPlayingModel !== false} className={`px-3 py-1.5 text-xs font-bold rounded-full border transition-all flex items-center gap-1 ${isPlayingModel === 'normal' ? 'bg-blue-50 border-blue-400 text-blue-600 animate-pulse' : 'bg-white border-slate-300 hover:border-[#F26522] hover:text-[#F26522] text-slate-600'}`}>
-                          <Volume2 size={14}/> {t('listenNormal')}
+                          <Volume2 size={14} /> {t('listenNormal')}
                         </button>
                       </div>
                     </div>
                     <div className="space-y-3">
                       <div className="text-lg font-medium text-slate-900 tracking-wide break-words">
-                         <FuriganaText text={currentTopic.hint.jp} />
+                        <FuriganaText text={currentTopic.hint.jp} />
                       </div>
                       <p className="text-sm font-mono text-[#F26522] leading-relaxed mt-2 pt-2 border-t border-slate-100">{currentTopic.hint.romaji}</p>
                       <p className="text-sm text-slate-600 italic border-l-2 border-slate-300 pl-3 leading-relaxed mt-2">{currentTopic.hint[lang] || currentTopic.hint.vi}</p>
@@ -1312,7 +1453,7 @@ function FreeAndTopicMode({ type, studentName, onRequireName, dbTopics }) {
               <AudioInput onAudioReady={handleAudioReady} />
             ) : (
               <div className="bg-green-50 border border-green-200 rounded-xl p-6 flex flex-col items-center justify-center relative shadow-sm">
-                <button onClick={() => {setSelectedFile(null); setFileUrl(null); setTranscript(null)}} className="absolute top-3 right-4 text-sm text-slate-500 hover:text-red-500 font-bold transition-colors">{t('cancel')}</button>
+                <button onClick={() => { setSelectedFile(null); setFileUrl(null); setTranscript(null) }} className="absolute top-3 right-4 text-sm text-slate-500 hover:text-red-500 font-bold transition-colors">{t('cancel')}</button>
                 <div className="w-12 h-12 bg-green-100 text-green-600 rounded-full flex items-center justify-center mb-3 shadow-sm"><CheckCircle2 size={24} /></div>
                 <p className="font-medium text-slate-800 text-center mb-1 px-8 truncate w-full">{selectedFile.name}</p>
                 {!isFileUpload && transcript && <p className="text-xs text-green-700 italic mb-3">{t('aiRecognized')}</p>}
@@ -1328,15 +1469,15 @@ function FreeAndTopicMode({ type, studentName, onRequireName, dbTopics }) {
       )}
 
       {step === 1 && (
-         <div className="flex flex-col items-center justify-center py-32 bg-white/90 backdrop-blur-md rounded-3xl border border-[#f0e0d8] shadow-xl">
-           <Activity size={64} className="text-[#F26522] animate-bounce mb-4" />
-           <h2 className="font-bold text-xl text-slate-800">{t('aiEvaluating')}</h2>
-           <p className="text-slate-500 text-sm mt-2">{t('waitMsg')}</p>
-         </div>
+        <div className="flex flex-col items-center justify-center py-32 bg-white/90 backdrop-blur-md rounded-3xl border border-[#f0e0d8] shadow-xl">
+          <Activity size={64} className="text-[#F26522] animate-bounce mb-4" />
+          <h2 className="font-bold text-xl text-slate-800">{t('aiEvaluating')}</h2>
+          <p className="text-slate-500 text-sm mt-2">{t('waitMsg')}</p>
+        </div>
       )}
 
       {step === 2 && result && (
-        <ReportCard result={result} studentName={studentName} fileUrl={fileUrl} onReset={() => {setStep(0); setSelectedFile(null);}} />
+        <ReportCard result={result} studentName={studentName} fileUrl={fileUrl} onReset={() => { setStep(0); setSelectedFile(null); }} />
       )}
     </div>
   );
@@ -1350,10 +1491,10 @@ function ShadowingMode({ studentName, onRequireName, dbShadowing }) {
   const [setupStep, setSetupStep] = useState(true);
   const [level, setLevel] = useState('N5');
   const [type, setType] = useState('sentence');
-  
+
   const [selectedLesson, setSelectedLesson] = useState(null);
   const [currentIndex, setCurrentIndex] = useState(0);
-  
+
   const [recordedFile, setRecordedFile] = useState(null);
   const [recordedUrl, setRecordedUrl] = useState(null);
   const [sentenceResult, setSentenceResult] = useState(null);
@@ -1362,7 +1503,28 @@ function ShadowingMode({ studentName, onRequireName, dbShadowing }) {
 
   useEffect(() => { if (!studentName) onRequireName(); }, []);
 
-  const lessons = dbShadowing.filter(item => item.isPublished && item.level === level && item.type === type);
+  useEffect(() => {
+    const normalizedLevel = String(level || '').trim().toUpperCase();
+    const levelLessons = dbShadowing.filter(item => {
+      const published = item.isPublished ?? item.ispublished;
+      const itemLevel = String(item.level || '').trim().toUpperCase();
+      const isPublished = published === true || published === 'true' || published === 1 || published === '1';
+      return isPublished && itemLevel === normalizedLevel;
+    });
+
+    const selectedTypeExists = levelLessons.some(item => String(item.type || '').trim().toLowerCase() === type);
+    if (!selectedTypeExists && levelLessons.length > 0) {
+      setType(String(levelLessons[0].type || '').trim().toLowerCase() || 'vocab');
+    }
+  }, [level, dbShadowing, type]);
+
+  const lessons = dbShadowing.filter(item => {
+    const published = item.isPublished ?? item.ispublished;
+    const itemLevel = String(item.level || '').trim().toUpperCase();
+    const itemType = String(item.type || '').trim().toLowerCase();
+    const isPublished = published === true || published === 'true' || published === 1 || published === '1';
+    return isPublished && itemLevel === level && itemType === type;
+  });
 
   const startPractice = (lesson) => {
     setSelectedLesson(lesson);
@@ -1372,24 +1534,24 @@ function ShadowingMode({ studentName, onRequireName, dbShadowing }) {
 
   const playModelAudio = (textRaw, speedMode = 'normal') => {
     if (!('speechSynthesis' in window)) { return; }
-    
+
     // Đổi $1 (Kanji) thành $2 (Hiragana) để máy đọc chuẩn xác 100% cách phát âm đã quy định
     const cleanText = textRaw.replace(/\[([^|]+)\|([^\]]+)\]/g, '$2');
     setIsPlayingModel(speedMode);
-    
+
     const utterance = new SpeechSynthesisUtterance(cleanText);
     utterance.lang = 'ja-JP';
-    
+
     if (speedMode === 'slow') {
       utterance.rate = 0.35;
     } else {
       const rateMap = { 'N5': 0.8, 'N4': 0.9, 'N3': 1.0, 'N2': 1.1, 'N1': 1.2 };
       utterance.rate = rateMap[level] || 1.0;
     }
-    
+
     utterance.onend = () => setIsPlayingModel(false);
     utterance.onerror = () => setIsPlayingModel(false);
-    
+
     window.speechSynthesis.cancel();
     window.speechSynthesis.speak(utterance);
   };
@@ -1398,46 +1560,46 @@ function ShadowingMode({ studentName, onRequireName, dbShadowing }) {
     setRecordedFile(file);
     setRecordedUrl(url);
     setIsEvaluating(true);
-    
+
     try {
       // Đợi 0.5s để UI "Đang phân tích" kịp hiển thị trước khi gọi AI
       await new Promise(r => setTimeout(r, 500));
 
       let res;
       if (isFile) {
-         res = { 
-           score: '7.5', level: lang === 'en' ? 'Fair' : 'Khá', 
-           criteria: {[t('cPronunciation')]: '7.5', [t('cFluency')]: '7.5'}, 
-           feedback: lang === 'en' ? "Use Direct Record for accurate evaluation." : "[CHẾ ĐỘ TẢI FILE]\nHệ thống không thể bóc tách lỗi chi tiết từ file ghi âm tải lên. Hãy dùng Thu âm trực tiếp." 
-         };
+        res = {
+          score: '7.5', level: lang === 'en' ? 'Fair' : 'Khá',
+          criteria: { [t('cPronunciation')]: '7.5', [t('cFluency')]: '7.5' },
+          feedback: lang === 'en' ? "Use Direct Record for accurate evaluation." : "[CHẾ ĐỘ TẢI FILE]\nHệ thống không thể bóc tách lỗi chi tiết từ file ghi âm tải lên. Hãy dùng Thu âm trực tiếp."
+        };
       } else {
-         const currentItem = selectedLesson.items[currentIndex];
-         
-         // SỬA LỖI: Cho phép nhận diện cả những từ vựng có 1 chữ Hán (length === 0 mới báo lỗi)
-         if (!transcriptStr || transcriptStr.trim().length === 0) {
+        const currentItem = selectedLesson.items[currentIndex];
+
+        // SỬA LỖI: Cho phép nhận diện cả những từ vựng có 1 chữ Hán (length === 0 mới báo lỗi)
+        if (!transcriptStr || transcriptStr.trim().length === 0) {
+          res = {
+            score: '2.0', level: lang === 'en' ? 'Needs Practice' : 'Cần luyện tập thêm',
+            criteria: { [t('cPronunciation')]: '2.0', [t('cFluency')]: '2.0' },
+            feedback: lang === 'en' ? 'The system could not clearly recognize what you said. Please check your microphone and speak louder.' : 'Hệ thống không nhận diện rõ bạn nói gì. Vui lòng kiểm tra Micro và thử nói lớn hơn nhé.'
+          };
+        } else {
+          const apiRes = await evaluateWithGemini(transcriptStr, currentItem.jp, level, type, lang);
+          if (apiRes) {
             res = {
-              score: '2.0', level: lang === 'en' ? 'Needs Practice' : 'Cần luyện tập thêm',
-              criteria: { [t('cPronunciation')]: '2.0', [t('cFluency')]: '2.0' },
-              feedback: lang === 'en' ? 'The system could not clearly recognize what you said. Please check your microphone and speak louder.' : 'Hệ thống không nhận diện rõ bạn nói gì. Vui lòng kiểm tra Micro và thử nói lớn hơn nhé.'
+              score: apiRes.score,
+              level: apiRes.level,
+              criteria: {
+                [t('cPronunciation')]: apiRes.pronunciation_score || "0.0",
+                [t('cFluency')]: apiRes.fluency_score || "0.0",
+                [t('cContentAccuracy')]: apiRes.accuracy_score || "0.0"
+              },
+              feedback: apiRes.feedback
             };
-         } else {
-            const apiRes = await evaluateWithGemini(transcriptStr, currentItem.jp, level, type, lang);
-            if (apiRes) {
-               res = {
-                  score: apiRes.score,
-                  level: apiRes.level,
-                  criteria: {
-                     [t('cPronunciation')]: apiRes.pronunciation_score || "0.0",
-                     [t('cFluency')]: apiRes.fluency_score || "0.0",
-                     [t('cContentAccuracy')]: apiRes.accuracy_score || "0.0"
-                  },
-                  feedback: apiRes.feedback
-               };
-            } else {
-               // Fallback an toàn nếu API quá tải
-               res = generateGradingResultFallback(transcriptStr, currentItem.jp, level, type, lang, t);
-            }
-         }
+          } else {
+            // Fallback an toàn nếu API quá tải
+            res = generateGradingResultFallback(transcriptStr, currentItem.jp, level, type, lang, t);
+          }
+        }
       }
       setSentenceResult(res);
     } catch (error) {
@@ -1460,7 +1622,7 @@ function ShadowingMode({ studentName, onRequireName, dbShadowing }) {
         <h2 className="text-2xl font-bold text-slate-800 mb-6 flex items-center gap-2">
           <MessageCircle className="text-[#F26522]" /> {t('shadowingTitle')}
         </h2>
-        
+
         <div className="mb-6">
           <label className="block font-bold text-slate-700 mb-2">{t('chooseLevel')}</label>
           <div className="flex gap-2 flex-wrap">
@@ -1475,32 +1637,32 @@ function ShadowingMode({ studentName, onRequireName, dbShadowing }) {
         <div className="mb-8">
           <label className="block font-bold text-slate-700 mb-2">{t('chooseType')}</label>
           <div className="grid grid-cols-2 gap-4">
-             <button onClick={() => setType('vocab')} className={`py-4 rounded-xl font-bold border flex flex-col items-center justify-center gap-2 transition-all ${type === 'vocab' ? 'bg-orange-50 border-[#F26522] text-[#F26522]' : 'bg-white text-slate-600 border-slate-300 hover:border-[#F26522]'}`}>
-                <span className="text-2xl">単語</span>{t('vocab')}
-             </button>
-             <button onClick={() => setType('sentence')} className={`py-4 rounded-xl font-bold border flex flex-col items-center justify-center gap-2 transition-all ${type === 'sentence' ? 'bg-orange-50 border-[#F26522] text-[#F26522]' : 'bg-white text-slate-600 border-slate-300 hover:border-[#F26522]'}`}>
-                <span className="text-2xl">文</span>{t('sentence')}
-             </button>
+            <button onClick={() => setType('vocab')} className={`py-4 rounded-xl font-bold border flex flex-col items-center justify-center gap-2 transition-all ${type === 'vocab' ? 'bg-orange-50 border-[#F26522] text-[#F26522]' : 'bg-white text-slate-600 border-slate-300 hover:border-[#F26522]'}`}>
+              <span className="text-2xl">単語</span>{t('vocab')}
+            </button>
+            <button onClick={() => setType('sentence')} className={`py-4 rounded-xl font-bold border flex flex-col items-center justify-center gap-2 transition-all ${type === 'sentence' ? 'bg-orange-50 border-[#F26522] text-[#F26522]' : 'bg-white text-slate-600 border-slate-300 hover:border-[#F26522]'}`}>
+              <span className="text-2xl">文</span>{t('sentence')}
+            </button>
           </div>
         </div>
 
         <div className="mb-8">
-           <label className="block font-bold text-slate-700 mb-2">{t('chooseLesson')}</label>
-           {lessons.length === 0 ? (
-              <p className="text-sm text-red-500 italic">{t('noLesson')}</p>
-           ) : (
-              <div className="space-y-3">
-                {lessons.map(lesson => (
-                  <button key={lesson.id} onClick={() => startPractice(lesson)} className="w-full text-left p-4 rounded-xl border border-slate-200 bg-white hover:border-[#F26522] hover:shadow-md transition-all flex justify-between items-center group">
-                    <div>
-                      <h4 className="font-bold text-slate-800">{lesson.title}</h4>
-                      <p className="text-xs text-slate-500 mt-1">{t('lessonItems').replace('{0}', lesson.items.length)}</p>
-                    </div>
-                    <ChevronRight className="text-slate-300 group-hover:text-[#F26522]" />
-                  </button>
-                ))}
-              </div>
-           )}
+          <label className="block font-bold text-slate-700 mb-2">{t('chooseLesson')}</label>
+          {lessons.length === 0 ? (
+            <p className="text-sm text-red-500 italic">{t('noLesson')}</p>
+          ) : (
+            <div className="space-y-3">
+              {lessons.map(lesson => (
+                <button key={lesson.id} onClick={() => startPractice(lesson)} className="w-full text-left p-4 rounded-xl border border-slate-200 bg-white hover:border-[#F26522] hover:shadow-md transition-all flex justify-between items-center group">
+                  <div>
+                    <h4 className="font-bold text-slate-800">{lesson.title}</h4>
+                    <p className="text-xs text-slate-500 mt-1">{t('lessonItems').replace('{0}', lesson.items.length)}</p>
+                  </div>
+                  <ChevronRight className="text-slate-300 group-hover:text-[#F26522]" />
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     );
@@ -1541,7 +1703,7 @@ function ShadowingMode({ studentName, onRequireName, dbShadowing }) {
               <p className="text-base font-mono text-[#F26522] mb-1 break-words">{currentItem.romaji}</p>
               <p className="text-sm text-slate-500 italic break-words">{currentItem[lang] || currentItem.vi}</p>
             </div>
-            
+
             <div className="flex gap-2 shrink-0 self-start mt-2 sm:mt-0">
               <button onClick={() => playModelAudio(currentItem.jp, 'slow')} disabled={isPlayingModel !== false} className={`flex flex-col items-center justify-center w-14 h-14 rounded-full shadow-md transition-all border-2 ${isPlayingModel === 'slow' ? 'bg-blue-50 border-blue-400 text-blue-600 animate-pulse' : 'bg-white border-slate-200 hover:border-[#F26522] hover:text-[#F26522] text-slate-700'}`} title="Nghe đọc chậm">
                 <Volume1 size={20} className={isPlayingModel === 'slow' ? "opacity-50" : ""} />
@@ -1567,15 +1729,15 @@ function ShadowingMode({ studentName, onRequireName, dbShadowing }) {
 
         {isEvaluating && (
           <div className="py-8 flex flex-col items-center">
-             <Activity size={48} className="text-[#F26522] animate-bounce mb-4" />
-             <p className="font-medium text-slate-600">{t('grading')}</p>
+            <Activity size={48} className="text-[#F26522] animate-bounce mb-4" />
+            <p className="font-medium text-slate-600">{t('grading')}</p>
           </div>
         )}
 
         {sentenceResult && !isEvaluating && (
           <div className="animate-in slide-in-from-bottom-4">
             <div className={`p-6 rounded-2xl border shadow-sm ${parseFloat(sentenceResult.score) >= 8.0 ? 'bg-green-50 border-green-200' : parseFloat(sentenceResult.score) >= 6.0 ? 'bg-yellow-50 border-yellow-200' : 'bg-red-50 border-red-200'} mb-6 flex flex-col md:flex-row gap-6 items-center md:items-start`}>
-              
+
               <div className={`w-24 h-24 rounded-full flex items-center justify-center flex-col shadow-inner shrink-0 ${parseFloat(sentenceResult.score) >= 8.0 ? 'bg-green-500 text-white' : parseFloat(sentenceResult.score) >= 6.0 ? 'bg-yellow-500 text-white' : 'bg-red-500 text-white'}`}>
                 <span className="font-black text-3xl">{sentenceResult.score}</span>
               </div>
@@ -1634,7 +1796,7 @@ function ReportCard({ result, studentName, fileUrl, onReset }) {
               <p className="text-xs text-slate-400 mt-1">{new Date().toLocaleDateString('vi-VN')}</p>
             </div>
           </div>
-          
+
           <div className="bg-[#fff0f5] border border-[#ffe4e1] rounded-2xl p-3 text-center min-w-[120px]">
             <p className="text-[10px] font-bold text-[#F26522] tracking-widest uppercase mb-1">{t('student')}</p>
             <p className="font-bold text-slate-800 text-lg">{studentName}</p>
@@ -1644,7 +1806,7 @@ function ReportCard({ result, studentName, fileUrl, onReset }) {
         <div className="p-8">
           {fileUrl && (
             <div className="mb-8 bg-slate-50 p-5 rounded-2xl border border-slate-100 no-print flex items-center gap-4">
-              <Volume2 size={24} className="text-[#F26522] shrink-0" /> 
+              <Volume2 size={24} className="text-[#F26522] shrink-0" />
               <div className="flex-1 w-full">
                 <p className="text-sm font-bold text-slate-700 mb-2">{t('originalAudio')}</p>
                 <audio controls src={fileUrl} className="w-full h-10" />
@@ -1663,7 +1825,7 @@ function ReportCard({ result, studentName, fileUrl, onReset }) {
               </div>
             </div>
             <p className="text-sm font-bold text-slate-400 tracking-widest uppercase mt-4">{t('avgScore')}</p>
-            
+
             <div className="flex flex-wrap justify-center gap-2 mt-3">
               <div className="px-6 py-1.5 bg-green-100 text-green-700 rounded-full text-sm font-black tracking-wide uppercase border border-green-200 shadow-sm">
                 {t('rank')} {result.level}
